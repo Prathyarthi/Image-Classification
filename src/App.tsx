@@ -1,4 +1,5 @@
 import * as mobilenet from '@tensorflow-models/mobilenet'
+import axios from 'axios';
 
 import { useEffect, useRef, useState } from 'react'
 
@@ -16,12 +17,37 @@ function App() {
 
   const imageRef = useRef<HTMLImageElement>(null)
 
+  const [result, setResult] = useState("No data")
+
   const identifyImage = async () => {
     if (!model || !imageRef.current) return;
-    const predictions = await model.classify(imageRef.current)
-    setPredictions(predictions)
-    console.log(predictions);
+
+    try {
+      const predictions = await model.classify(imageRef.current)
+      setPredictions(predictions)
+      sendPredictionsToBackend(predictions)
+      console.log(predictions);
+    } catch (error) {
+      console.log(error);
+    }
   }
+
+  const sendPredictionsToBackend = async (predictions: Prediction[]) => {
+    try {
+      if (predictions.length > 0) {
+        const firstPrediction = predictions[0]
+        const response = await axios.post('http://localhost:8000/detectImage', {
+          className: firstPrediction.className.trim().split(' ')[0]
+        })
+        setResult(response.data.waterfootprint)
+        console.log('Backend response:', response.data)
+        console.log('Response:', response.data.waterfootprint)
+      }
+    } catch (error) {
+      console.error('Error sending prediction to backend:', error)
+    }
+  }
+
   const uploadImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { files } = e.target
 
@@ -84,6 +110,7 @@ function App() {
           {imageURL &&
             <button className='bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded' onClick={identifyImage}>Identify Image</button>
           }
+          {result}
         </div>
       </div>
     </>
